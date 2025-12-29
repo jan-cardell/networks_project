@@ -1,0 +1,11 @@
+,Beltran_Leyva,Beltran_Leyva_Family,Familia,Golfo,Juarez,Sinaloa,Sinaloa_Family,Tijuana,Zetas,Otros
+Beltran_Leyva,0,34,43,43,12,35,20,12,63,19
+Beltran_Leyva_Family,34,0,15,21,11,21,12,10,19,14
+Familia,43,15,0,56,9,26,13,10,92,15
+Golfo,43,21,56,0,17,38,12,18,189,22
+Juarez,12,11,9,17,0,44,8,10,12,6
+Sinaloa,35,21,26,38,44,0,18,22,42,22
+Sinaloa_Family,20,12,13,12,8,18,0,13,16,6
+Tijuana,12,10,10,18,10,22,13,0,12,16
+Zetas,63,19,92,189,12,42,16,12,0,24
+Otros,19,14,15,22,6,22,6,16,24,0
