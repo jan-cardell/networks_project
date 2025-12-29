@@ -14,6 +14,7 @@ def nc_backbone(adj_matrix, alpha):
     """
     import numpy as np
     from scipy import stats
+    from util.get_edge_list import get_edge_list
 
     # Calculate node strengths
     strengths = adj_matrix.sum(axis=1)
@@ -25,27 +26,13 @@ def nc_backbone(adj_matrix, alpha):
         # Empty graph - return empty array with proper shape
         return np.empty((0, 3), dtype=object)
 
-    # Get upper triangular indices (excluding diagonal)
-    n = len(adj_matrix)
-    rows_idx, cols_idx = np.triu_indices(n, k=1)
-    
-    # Extract weights for upper triangle
-    weights = adj_matrix.values[rows_idx, cols_idx]
-    
-    # Keep only non-zero edges
-    mask = weights > 0
-    rows_idx = rows_idx[mask]
-    cols_idx = cols_idx[mask]
-    weights = weights[mask]
+    row_labels, col_labels, weights = get_edge_list(adj_matrix).T
 
-    # Get node labels (works for both string and int indices)
-    labels = adj_matrix.index.to_numpy()
-    row_labels = labels[rows_idx]
-    col_labels = labels[cols_idx]
+    weights = weights.astype(int)
     
-    # Get strengths using labels (handles both string and int)
-    s_i = strengths.iloc[rows_idx].values  # Use iloc for positional indexing
-    s_j = strengths.iloc[cols_idx].values
+    # Get strengths using labels 
+    s_i = strengths.loc[row_labels].values
+    s_j = strengths.loc[col_labels].values
     
     # Calculate null probability: p_ij = (s_i * s_j) / W^2
     p_null = (s_i * s_j) / (W ** 2)
