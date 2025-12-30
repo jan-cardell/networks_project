@@ -45,7 +45,10 @@ def project(bipartite_df, on_municipalities=True):
     nc_backbone : Extract statistically significant backbone from projection
     """
     family_cols = bipartite_df.columns[3:]
-    B = bipartite_df.set_index('Code')[family_cols] 
+    if bipartite_df.index.name == 'Code':
+      B = bipartite_df[family_cols] 
+    else:
+      B = bipartite_df.set_index('Code')[family_cols]
 
     if on_municipalities:
         A = B @ B.T
