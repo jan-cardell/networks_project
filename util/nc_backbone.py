@@ -20,7 +20,7 @@ def nc_backbone(adj_matrix, alpha):
     strengths = adj_matrix.sum(axis=1)
 
     # Total network weight (sum of all edges once)
-    W = adj_matrix.values.sum() / 2 # assuming undirected adjacency matrix
+    W = adj_matrix.values.sum()
 
     if W == 0:
         # Empty graph - return empty array with proper shape
