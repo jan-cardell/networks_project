@@ -57,20 +57,33 @@ def build_supragraph(G_dict, omega=1.0, normalize_weights=True):
             G_supra.add_edges_from(edges_to_add)
     
     # Add inter-layer edges (same node across consecutive years)
-    # unfinished
     years = sorted(G_dict.keys())
-    families = G_dict[1990].nodes()
+    families = list(G_dict[years[0]].nodes())  # All families (constant across years)
+    n_families = len(families)
+    n_transitions = len(years) - 1
 
-    for i in range(len(years) - 1):
-        year1, year2 = years[i], years[i+1]
-        
-        nodes_year1 = set(G_dict[year1].nodes())
-        nodes_year2 = set(G_dict[year2].nodes())
-        common_nodes = nodes_year1.intersection(nodes_year2)
-        
-        # Add all inter-layer edges at once
-        inter_edges = [((node, year1), (node, year2), {'weight': omega, 'edge_type': 'inter'}) 
-                       for node in common_nodes]
-        G_supra.add_edges_from(inter_edges)
+    # Create inter-layer edge matrix using broadcasting
+    # Shape: (n_families * n_transitions, 4) -> [family, year1, family, year2]
+    family_indices = np.tile(np.arange(n_families), n_transitions)  # Repeat family indices
+    year1_indices = np.repeat(np.arange(n_transitions), n_families)  # Year transition indices
+
+    # Map to actual values
+    families_array = np.array(families)
+    years_array = np.array(years)
+
+    inter_layer_data = np.column_stack([
+        families_array[family_indices],           # Family name (u)
+        years_array[year1_indices],               # Year t
+        families_array[family_indices],           # Family name (v) - same family
+        years_array[year1_indices + 1]            # Year t+1
+    ])
+
+    # Convert to edge format: ((family, year1), (family, year2), weight)
+    inter_edges = [
+        ((row[0], row[1]), (row[2], row[3]), {'weight': omega, 'edge_type': 'inter'})
+        for row in inter_layer_data
+    ]
+
+    G_supra.add_edges_from(inter_edges)
     
     return G_supra
