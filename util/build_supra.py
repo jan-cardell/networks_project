@@ -1,4 +1,4 @@
-def build_supragraph(G_dict, omega=1.0, normalize_weights=True):
+def build_supragraph(G_dict, omega=1.0, normalize_weights=False, adaptive_omega=True):
     """
     Build a supra-graph connecting temporal layers
     
@@ -7,9 +7,11 @@ def build_supragraph(G_dict, omega=1.0, normalize_weights=True):
     G_dict: dict
         Dictionary of graphs {year: Graph}
     omega: float
-        Inter-layer coupling strength (relative to normalized intra-layer weights)
+        Inter-layer coupling strength (used if adaptive_omega=False)
     normalize_weights: bool
         If True, normalize intra-layer weights to [0, 1] range
+    adaptive_omega: bool
+        If True, use adaptive omega: 1.0 for years ≤2001, mean weight for years >2001
     
     Returns:
     --------
@@ -33,13 +35,10 @@ def build_supragraph(G_dict, omega=1.0, normalize_weights=True):
 
         # Convert rows to tuples using map
         supra_nodes = list(map(tuple, supra_nodes_matrix))
-        G_supra.add_nodes_from(supra_nodes)    
+        G_supra.add_nodes_from(supra_nodes)    #168 nodes added in the format (family, 'year')
 
         edges_array = np.array(list(G.edges(data='weight')))
         if len(edges_array) > 0:
-            # Create supra-nodes: (family, year)
-            u_supra = list(map(tuple, np.column_stack([edges_array[:, 0], np.full(len(edges_array), year)])))
-            v_supra = list(map(tuple, np.column_stack([edges_array[:, 1], np.full(len(edges_array), year)])))
             
             # Normalize weights
             weights = edges_array[:, 2].astype(int) / max_weight
@@ -50,7 +49,7 @@ def build_supragraph(G_dict, omega=1.0, normalize_weights=True):
             
             # Use zip to create edges - faster than indexing
             edges_to_add = [
-                ((u, year), (v, year), {'weight': w, 'edge_type': 'intra'})
+                ((u, str(year)), (v, str(year)), {'weight': w, 'edge_type': 'intra'})
                 for u, v, w in zip(u_nodes, v_nodes, weights)
             ]
             
@@ -59,31 +58,40 @@ def build_supragraph(G_dict, omega=1.0, normalize_weights=True):
     # Add inter-layer edges (same node across consecutive years)
     years = sorted(G_dict.keys())
     families = list(G_dict[years[0]].nodes())  # All families (constant across years)
-    n_families = len(families)
-    n_transitions = len(years) - 1
-
-    # Create inter-layer edge matrix using broadcasting
-    # Shape: (n_families * n_transitions, 4) -> [family, year1, family, year2]
-    family_indices = np.tile(np.arange(n_families), n_transitions)  # Repeat family indices
-    year1_indices = np.repeat(np.arange(n_transitions), n_families)  # Year transition indices
-
-    # Map to actual values
-    families_array = np.array(families)
-    years_array = np.array(years)
-
-    inter_layer_data = np.column_stack([
-        families_array[family_indices],           # Family name (u)
-        years_array[year1_indices],               # Year t
-        families_array[family_indices],           # Family name (v) - same family
-        years_array[year1_indices + 1]            # Year t+1
-    ])
-
-    # Convert to edge format: ((family, year1), (family, year2), weight)
-    inter_edges = [
-        ((row[0], row[1]), (row[2], row[3]), {'weight': omega, 'edge_type': 'inter'})
-        for row in inter_layer_data
-    ]
-
-    G_supra.add_edges_from(inter_edges)
+    
+    # Calculate adaptive omega values if needed
+    if adaptive_omega:
+        omega_dict = {}
+        for year in years:
+            G = G_dict[year]
+            if G.number_of_edges() > 0:
+                # Use omega=1 for years ≤2001, mean weight for years >2001
+                if year <= 2001:
+                    omega_dict[year] = 1.0
+                else:
+                    weights = np.array(list(G.edges(data='weight')))[:,2].astype(int)
+                    mean_weight = np.mean(weights)
+                    omega_dict[year] = mean_weight
+            else:
+                omega_dict[year] = 1.0  # Default for years with no edges
+    
+    # Add inter-layer edges year by year
+    for i, year in enumerate(years[:-1]): #iterate over all years until 2009
+        next_year = years[i + 1]
+        
+        # Determine omega for this transition
+        if adaptive_omega:
+            # Use omega from current year for the transition to next year
+            year_omega = omega_dict[year]
+        else:
+            year_omega = omega
+        
+        # Add edges for all families between this year and next
+        inter_edges = [
+            ((family, str(year)), (family, str(next_year)), {'weight': year_omega, 'edge_type': 'inter'})
+            for family in families
+        ]
+        
+        G_supra.add_edges_from(inter_edges)
     
     return G_supra
